@@ -29,9 +29,12 @@ jobs:
 
       - name: Install build tools
         run: |
-          brew install xcodegen || brew install xcodegen
-          python3 -m pip install --quiet fonttools
-          echo "xcodegen $(xcodegen --version)"
+          brew install xcodegen
+          # Homebrew's python refuses system-wide pip installs (PEP 668); fontTools is only used
+          # by make_ext_font.py while the shell is built, so the override is safe here.
+          python3 -m pip install --quiet --break-system-packages fonttools
+          xcodegen --version
+          python3 -c 'import fontTools; print("fontTools", fontTools.version)'
 
       - name: Build the shell
         env:
@@ -44,9 +47,10 @@ jobs:
         run: |
           Z="$(ls "$RUNNER_TEMP"/shell-out/*.zip)"
           echo "shell: $Z ($(du -h "$Z" | cut -f1))"
-          unzip -p "$Z" 'Payload/*/dm/shell_info.txt' || true
-          echo '--- manifest ---'
-          unzip -p "$Z" 'Payload/*/dm/shell_manifest.txt' || true
+          for f in dm/shell_info.txt dm/shell_manifest.txt; do
+            echo "--- $f ---"
+            unzip -Z1 "$Z" | grep -- "$f\$" | head -1 | while read -r p; do unzip -p "$Z" "$p"; done
+          done
 
       - uses: actions/upload-artifact@v4
         with:
@@ -61,6 +65,6 @@ jobs:
         with:
           name: build-log
           path: |
-            shell-out/build/build.log
-            dm/ios/Gen/**/*.log
+            ${{ runner.temp }}/shell-out/build/build.log
+            dm/ios/Gen/dm.xcconfig
           if-no-files-found: ignore
