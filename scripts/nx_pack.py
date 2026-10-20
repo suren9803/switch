@@ -135,7 +135,9 @@ def main():
     [os.path.isdir(romfs) or die('no %s' % romfs)]
 
     work = os.path.abspath(a.work or os.path.join(game, '.nxpack'))
-    app = os.path.join(work, 'app')
+    # The bundle must keep its .app suffix inside Payload/ — iOS and every sideloading tool
+    # refuse an IPA whose bundle is not Payload/<name>.app.
+    app = os.path.join(work, 'DmIOS.app')
     patched = os.path.join(work, 'patched')
     shdr = os.path.join(work, 'shader')
     msl = os.path.join(work, 'msl')
@@ -146,13 +148,16 @@ def main():
     info_path = os.path.join(app, 'dm', 'shell_info.txt')
     if not os.path.exists(info_path):
         shutil.rmtree(app, ignore_errors=True)
+        shutil.rmtree(os.path.join(work, 'Payload'), ignore_errors=True)
         say('unpacking the shell')
         with zipfile.ZipFile(shell) as z:
             z.extractall(work)
         if not os.path.isdir(app):
-            # tolerate a shell packed flat instead of under Payload/
-            cand = [os.path.join(work, n) for n in os.listdir(work)]
-            cand = [c for c in cand if os.path.isdir(c) and c.endswith('.app')]
+            # An IPA-style shell keeps the app under Payload/; a flat one may not.
+            cand = []
+            for base in (os.path.join(work, 'Payload'), work):
+                if os.path.isdir(base):
+                    cand += [os.path.join(base, n) for n in os.listdir(base) if n.endswith('.app')]
             if not cand:
                 die('the shell has no <name>.app inside')
             os.rename(cand[0], app)

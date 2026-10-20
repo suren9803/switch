@@ -102,6 +102,17 @@ fi
 t "shell manifest:"; sed 's/^/    /' "$MAN"
 
 t "pack the shell zip"
+# Ad-hoc sign the bundle. Without this the executable carries no LC_CODE_SIGNATURE at all
+# (xcodebuild ran with CODE_SIGNING_ALLOWED=NO), and signing tools such as i4Tools refuse to
+# re-sign a binary that has no signature blob to replace (they report error 96). An ad-hoc
+# signature makes the shell a well-formed unsigned app that any sideloading tool can re-sign.
+if command -v codesign > /dev/null; then
+  codesign --force --sign - --timestamp=none "$A/DmIOS" > /dev/null 2>&1 \
+    || die "ad-hoc codesign failed"
+  codesign -dv "$A/DmIOS" 2>&1 | head -3 || true
+else
+  t "warning: no codesign on this machine; the shell will have no LC_CODE_SIGNATURE"
+fi
 ZIP=$OUT/nxnative-shell-$GAME.zip
 rm -f "$ZIP"
 python3 tools/pack_ipa.py "$ZIP" --skip Payload/DmIOS.app/_CodeSignature --skip Payload/DmIOS.app/embedded.mobileprovision \

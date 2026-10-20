@@ -495,7 +495,10 @@ def main():
     files, results, common = [], [], None
     for i, (romfs, mainnso) in enumerate(zip(romfs_v, main_v)):
         tag = os.path.basename(os.path.dirname(os.path.abspath(romfs))) if i else ''
-        files += sorted((os.path.join(dp, f), (tag + '/' if tag else '') + os.path.relpath(os.path.join(dp, f), romfs)) for dp, _, fs in os.walk(romfs) for f in fs)
+        # Normalize to forward slashes: the profile's shader_groups rules are written as
+        # "/EffectData/=effectdata", and on Windows os.path.relpath yields backslashes, which made
+        # every shader fall into the "other" group.
+        files += sorted((os.path.join(dp, f), (tag + '/' if tag else '') + os.path.relpath(os.path.join(dp, f), romfs).replace(os.sep, '/')) for dp, _, fs in os.walk(romfs) for f in fs)
         img = nso_image(mainnso)
         if not i:
             import unityfs
