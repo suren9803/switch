@@ -1,0 +1,66 @@
+name: build-shell
+
+# Builds the shell for one game on a cloud macOS runner, so nobody needs a Mac at home.
+# The shell holds the app and no game content; the game files never leave your PC. You then pack
+# the IPA on Windows with scripts/nx_pack.py.
+#
+# Run it from the Actions tab (Run workflow) or: gh workflow run build-shell -f game=0100000000010000
+
+on:
+  workflow_dispatch:
+    inputs:
+      game:
+        description: 'Base game title ID (Super Mario Odyssey = 0100000000010000)'
+        required: true
+        default: '0100000000010000'
+
+jobs:
+  shell:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show the toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcode-select -p
+
+      - name: Install build tools
+        run: |
+          brew install xcodegen || brew install xcodegen
+          python3 -m pip install --quiet fonttools
+          echo "xcodegen $(xcodegen --version)"
+
+      - name: Build the shell
+        env:
+          GAME: ${{ inputs.game }}
+        run: |
+          chmod +x dm/ios/tools/shell_build.sh
+          dm/ios/tools/shell_build.sh "$RUNNER_TEMP/shell-out"
+
+      - name: Show what the shell left out
+        run: |
+          Z="$(ls "$RUNNER_TEMP"/shell-out/*.zip)"
+          echo "shell: $Z ($(du -h "$Z" | cut -f1))"
+          unzip -p "$Z" 'Payload/*/dm/shell_info.txt' || true
+          echo '--- manifest ---'
+          unzip -p "$Z" 'Payload/*/dm/shell_manifest.txt' || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nxnative-shell-${{ inputs.game }}
+          path: ${{ runner.temp }}/shell-out/*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Keep the build log when it fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: |
+            shell-out/build/build.log
+            dm/ios/Gen/**/*.log
+          if-no-files-found: ignore
