@@ -1,0 +1,25 @@
+# Normalize line endings: scripts and sources must be LF everywhere.
+# A CRLF shell script fails on macOS with "\r: command not found", and a CRLF Python file breaks
+# the shebang. Keep this file in sync with the repository's expectations.
+* text=auto eol=lf
+
+*.sh    text eol=lf
+*.py    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.c     text eol=lf
+*.h     text eol=lf
+*.m     text eol=lf
+*.S     text eol=lf
+*.tsv   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+
+# Binary content must never be touched
+*.metallib binary
+*.bin      binary
+*.nsp      binary
+*.nca      binary
+*.jpg      binary
+*.png      binary
+*.zst      binary
