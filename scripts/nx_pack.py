@@ -88,6 +88,27 @@ def profile_dir(title_id):
     return d
 
 
+def has_code_signature(path):
+    """True when the Mach-O already carries an LC_CODE_SIGNATURE (command 0x1d)."""
+    import struct
+    with open(path, 'rb') as f:
+        head = f.read(4096)
+    if len(head) < 32:
+        return False
+    ncmds = struct.unpack_from('<I', head, 0x10)[0]
+    off = 32
+    for _ in range(ncmds):
+        if off + 8 > len(head):
+            return False
+        cmd, size = struct.unpack_from('<II', head, off)
+        if cmd == 0x1D:
+            return True
+        if size < 8:
+            return False
+        off += size
+    return False
+
+
 def read_tsv(path):
     out = {}
     for line in open(path, encoding='utf-8'):
@@ -189,13 +210,23 @@ def main():
 
     # --- 3. the dynamic library the shell's loader takes the modules from
     fw = os.path.join(app, 'Frameworks', 'Guest.framework')
-    if not os.path.exists(os.path.join(fw, 'Guest')):
+    guest = os.path.join(fw, 'Guest')
+    if not os.path.exists(guest):
         say('writing Frameworks/Guest.framework')
         os.makedirs(os.path.join(app, 'Frameworks'), exist_ok=True)
         run([PY, os.path.join(DM, 'tools', 'guest_dylib.py'), patched, os.path.join(app, 'Frameworks')] + modules,
             what='guest_dylib.py')
     else:
         say('Guest.framework reused')
+    # iOS requires every embedded Mach-O to carry a signature, and signing tools refuse a bundle
+    # whose framework has none (i4Tools: "error 96"). guest_dylib.py writes segments only, so the
+    # ad-hoc signature is added here, on this machine, without any Apple tooling.
+    if not has_code_signature(guest):
+        say('ad-hoc signing Guest.framework (406 MB of code, a few seconds)')
+        run([PY, os.path.join(HERE, 'sign_adhoc.py'), guest, '--identifier', 'local.guest'],
+            what='sign_adhoc.py')
+    else:
+        say('Guest.framework already signed')
 
     # --- 4. shaders: split the game's packages, then translate to MSL
     pkg = os.path.join(shdr, 'pkg')
