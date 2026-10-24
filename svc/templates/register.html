@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}注册 · Switch 出包{% endblock %}
+{% block body %}
+<div class="auth-wrap">
+  <div class="card hero">
+    <div class="step-badge"><span class="num">→</span> 创建账号</div>
+    <h1>注册</h1>
+    <p class="muted">邀请制。注册成功后会进入任务向导的第一步。</p>
+    <form method="post">
+      <label>邀请码</label>
+      <input type="text" name="invite" required autofocus placeholder="10 位字母数字" style="text-transform:uppercase" autocomplete="off">
+      <label>邮箱（用于登录，不必和 Apple ID 一致）</label>
+      <input type="email" name="email" required placeholder="you@example.com" autocomplete="username">
+      <label>密码（至少 8 位）</label>
+      <input type="password" name="password" required minlength="8" autocomplete="new-password">
+      <label>再输一次</label>
+      <input type="password" name="password2" required minlength="8" autocomplete="new-password">
+      <p style="margin-top:18px"><button type="submit" class="btn block">创建账号</button></p>
+    </form>
+    <p class="hint">已经有账号？<a href="{{ url_for('login') }}">直接登录</a></p>
+  </div>
+</div>
+{% endblock %}

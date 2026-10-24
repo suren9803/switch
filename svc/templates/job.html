@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}{% if job['state'] == 'uploading' %}上传中{% else %}任务{% endif %} · #{{ job['id'] }}{% endblock %}
+{% block body %}
+<div class="card hero">
+  {% if job['state'] == 'uploading' %}
+  <div class="step-badge"><span class="num">1</span> 上传游戏</div>
+  <h1>上传中 · 任务 #{{ job['id'] }}</h1>
+  {% else %}
+  <div class="step-badge"><span class="num">3</span> 安装到手机</div>
+  <h1>任务 #{{ job['id'] }}</h1>
+  {% endif %}
+  <p class="muted">{{ job['nsp_name'] or job['game_name'] or '' }}</p>
+
+  <p id="stage" style="margin:18px 0 8px;font-size:16px;font-weight:600">
+    {% if job['state'] == 'uploading' %}{{ job['stage'] or '上传中' }}
+    {% else %}{{ job['stage'] or '排队中' }}{% endif %}
+  </p>
+  <div class="bar"><i id="fill" style="width:{{ job['progress'] }}%"></i></div>
+  <p class="muted" id="msg" style="margin-top:10px;white-space:pre-wrap">{{ job['message'] or '' }}</p>
+  <p class="hint" id="stay-hint" style="{% if job['state'] in ('done','failed') %}display:none{% endif %}">
+    {% if job['state'] == 'uploading' %}
+    上传进行中，请留在本页。
+    {% else %}
+    出包进行中，请留在本页。
+    {% endif %}
+  </p>
+
+  <div class="actions" id="actions">
+    {% if job['state'] == 'done' %}
+      {% if signed %}
+        <a class="btn" href="{{ url_for('ota_page', jid=job['id']) }}">安装到手机</a>
+        <a class="btn ghost" href="{{ url_for('download', jid=job['id']) }}">下载 IPA</a>
+        <a class="btn ghost" href="{{ url_for('upload') }}">再出一包</a>
+      {% else %}
+        <span class="muted">包已就绪。可先下载 IPA。</span>
+        <a class="btn ghost" href="{{ url_for('download', jid=job['id']) }}">下载 IPA</a>
+        <a class="btn ghost" href="{{ url_for('upload') }}">再出一包</a>
+      {% endif %}
+    {% elif job['state'] == 'failed' %}
+      <a class="btn" href="{{ url_for('upload') }}">重新上传</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" id="udid-card">
+  <div class="step-badge"><span class="num">2</span> 获取 UDID</div>
+  <h2 style="margin-top:4px;color:var(--fg);font-size:17px">手机获取 UDID</h2>
+  <p class="muted">用 iPhone Safari 打开下面链接，安装描述文件后复制 UDID。</p>
+  <div class="actions">
+    <a class="btn" href="https://udid.tech/download-profile" target="_blank" rel="noopener">去获取 UDID</a>
+  </div>
+</div>
+
+<script>
+const jid = {{ job['id'] }};
+const $s = document.getElementById('stage');
+const $f = document.getElementById('fill');
+const $m = document.getElementById('msg');
+const $a = document.getElementById('actions');
+const $hint = document.getElementById('stay-hint');
+
+function renderDone(j){
+  if($hint) $hint.style.display = 'none';
+  if(j.signed){
+    $a.innerHTML = `<a class="btn" href="/install/${jid}">安装到手机</a>
+                    <a class="btn ghost" href="/download/${jid}">下载 IPA</a>
+                    <a class="btn ghost" href="/upload">再出一包</a>`;
+  } else {
+    $a.innerHTML = `<span class="muted">包已就绪。可先下载 IPA。</span>
+                    <a class="btn ghost" href="/download/${jid}">下载 IPA</a>
+                    <a class="btn ghost" href="/upload">再出一包</a>`;
+  }
+}
+
+async function tick(){
+  try{
+    const r = await fetch(`/api/job/${jid}`, {cache:'no-store', credentials:'same-origin'});
+    if(!r.ok) return;
+    const j = await r.json();
+    $s.textContent = j.stage || j.state;
+    $f.style.width = (j.progress||0) + '%';
+    $m.textContent = j.message || '';
+    if(j.state === 'uploading'){
+      if($hint){ $hint.style.display='block'; $hint.textContent='上传进行中，请留在本页。'; }
+      setTimeout(tick, 1500); return;
+    }
+    if(j.state === 'done'){ renderDone(j); return; }
+    if(j.state === 'failed'){
+      $f.style.background = 'var(--err)';
+      $a.innerHTML = `<a class="btn" href="/upload">重新上传</a>`;
+      if($hint) $hint.style.display='none';
+      return;
+    }
+    if($hint){ $hint.style.display='block'; $hint.textContent='出包进行中，请留在本页。'; }
+    setTimeout(tick, 1500);
+  }catch(e){ setTimeout(tick, 3000); }
+}
+tick();
+</script>
+{% endblock %}

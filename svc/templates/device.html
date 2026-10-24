@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}获取 UDID{% endblock %}
+{% block body %}
+<div class="card hero">
+  <div class="step-badge"><span class="num">·</span> 获取 UDID</div>
+  <h1>用手机获取 UDID</h1>
+  <p class="muted">签名必须把这台 iPhone 的 UDID 登记到你的 Apple 开发者账号。请用手机完成下面步骤，再把 UDID 粘贴回本站。</p>
+
+  <div class="callout">
+    <strong>必须用 iPhone 上的 Safari</strong>
+    <span class="muted">不要用微信 / QQ / Chrome 内置浏览器，否则描述文件可能装不上。</span>
+  </div>
+
+  <ol class="steps">
+    <li>在 iPhone 的 Safari 打开下方链接，下载描述文件</li>
+    <li>到「设置 → 已下载描述文件」点安装</li>
+    <li>装完后网页会显示 UDID，长按复制</li>
+    <li>回到本站，粘贴到 Apple ID 区域的 UDID 框</li>
+  </ol>
+
+  <div class="actions">
+    <a class="btn" href="https://udid.tech/download-profile" target="_blank" rel="noopener">去 udid.tech 获取 UDID</a>
+    <a class="btn ghost" href="{{ url_for('upload') }}">← 回上传页</a>
+  </div>
+  <p class="hint" style="margin-top:12px">链接：<code>https://udid.tech/download-profile</code></p>
+</div>
+
+{% if devices %}
+<div class="card">
+  <h2>本站已登记设备</h2>
+  <table>
+    <tr><th>设备</th><th>型号</th><th>iOS</th><th>UDID</th></tr>
+    {% for d in devices %}
+    <tr>
+      <td>{{ d['name'] or '未命名' }}</td>
+      <td class="muted">{{ d['model'] or '-' }}</td>
+      <td class="muted">{{ d['ios'] or '-' }}</td>
+      <td><code>{{ d['udid'][:16] }}…</code></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>为什么需要 UDID</h2>
+  <p class="muted">iOS 只能把 app 装到「描述文件里登记过的设备」上。udid.tech 的描述文件只读取设备标识，装完后可在设置里删除。</p>
+</div>
+{% endblock %}

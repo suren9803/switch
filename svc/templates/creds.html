@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}步骤 2 · Apple ID{% endblock %}
+{% block body %}
+<div class="card hero">
+  <div class="step-badge"><span class="num">2</span> Apple ID</div>
+  <h1>Apple ID 签名</h1>
+  <p class="muted">填写你的 Apple ID，服务端会向 Apple 申请开发者证书并登记设备，出包后即可装到手机。密码只发往 Apple，不会发给第三方。</p>
+
+  {% if info %}
+    <p><span class="pill done">已有签名证书</span>
+      {% if provision_meta and provision_meta.bundle_id %}
+        <span class="muted">bundle {{ provision_meta.bundle_id }}</span>
+      {% endif %}
+    </p>
+    <table>
+      <tr><th>描述文件名</th><td>{{ info['name'] or '-' }}</td></tr>
+      <tr><th>Team</th><td>{{ info['team'] or '-' }} {{ info['team_name'] or '' }}</td></tr>
+      <tr><th>有效期到</th><td>{{ info['expires'] }}</td></tr>
+      <tr><th>包含设备</th><td>{{ '企业证书，不限设备' if info['all_devices'] else (info['udids']|length) ~ ' 台' }}</td></tr>
+    </table>
+  {% elif apple %}
+    <p><span class="pill running">已保存 Apple ID</span> <code>{{ apple['email'] }}</code>
+      {% if not info %}<span class="muted">— 尚未取到证书</span>{% endif %}
+    </p>
+  {% endif %}
+
+  {% if pending_2fa %}
+  <div class="callout">
+    <strong>需要两步验证</strong>
+    <span class="muted">
+      Apple 已向你的受信任设备{% if pending_2fa.method == 'sms' %} / 短信{% endif %}发送验证码
+      （账号 <code>{{ pending_2fa.email }}</code>）。请在下方输入 6 位数字。
+    </span>
+  </div>
+  <form method="post">
+    <input type="hidden" name="action" value="apple_2fa">
+    <label>验证码</label>
+    <input type="text" name="apple_code" inputmode="numeric" autocomplete="one-time-code"
+           placeholder="6 位数字" required autofocus>
+    <label>本机 UDID（若还没填过）</label>
+    <input type="text" name="udid" placeholder="从 udid.tech 复制粘贴"
+           value="{{ devices[0]['udid'] if devices else '' }}">
+    <div class="actions">
+      <button type="submit">提交验证码并取证</button>
+    </div>
+  </form>
+  {% else %}
+  <form method="post">
+    <input type="hidden" name="action" value="apple">
+    <label>Apple ID（邮箱）</label>
+    <input type="email" name="apple_email" required
+           value="{{ apple['email'] if apple else '' }}"
+           placeholder="name@example.com" autocomplete="username">
+    <label>密码 / App 专用密码</label>
+    <input type="password" name="apple_password" required
+           placeholder="开启双重认证时请用 App 专用密码" autocomplete="current-password">
+    <p class="hint">开了双重认证：到 <a href="https://appleid.apple.com" target="_blank" rel="noopener">appleid.apple.com</a>
+      → 登录与安全 → App 专用密码。若直接用登录密码，下一步会要你填设备上弹出的验证码。</p>
+
+    <label>手机 UDID（签名必须登记设备）</label>
+    <input type="text" name="udid" placeholder="从 udid.tech 复制粘贴"
+           value="{{ devices[0]['udid'] if devices else (provision_meta.udid if provision_meta else '') }}">
+    <p class="hint">需要登记 UDID 时点这里：
+      <a href="{{ url_for('bind_device') }}">用 Safari 安装描述文件自动获取</a>
+    </p>
+
+    <div class="actions">
+      <button type="submit">保存并获取证书</button>
+    </div>
+  </form>
+  {% if apple_session.get('authenticated') or apple %}
+  <form method="post" style="margin-top:12px">
+    <input type="hidden" name="action" value="reprovision">
+    <input type="hidden" name="udid" id="udid-copy" value="">
+    <p class="hint">已登录过 Apple / 已保存账号时，可在改完 UDID 后重新向 Apple 拉证书：</p>
+    <div class="actions">
+      <button type="submit" class="btn ghost" onclick="document.getElementById('udid-copy').value=(document.querySelector('input[name=udid]')||{}).value||''">重新取证</button>
+    </div>
+  </form>
+  {% endif %}
+  {% endif %}
+
+  {% if info %}
+  <div class="actions">
+    <a class="btn" href="{{ url_for('upload') }}">去上传游戏 →</a>
+  </div>
+  {% endif %}
+</div>
+
+<details class="card" style="padding:18px 20px">
+  <summary style="cursor:pointer;font-weight:600;color:var(--dim)">高级：仍可上传 .p12 + mobileprovision</summary>
+  <p class="muted" style="margin-top:12px">如果你已经用 Xcode / 其他工具导出了证书，可以跳过自动取证，直接上传。</p>
+  <form method="post" enctype="multipart/form-data">
+    <input type="hidden" name="action" value="advanced_p12">
+    <label>证书文件（.p12）</label>
+    <input type="file" name="p12" accept=".p12" required>
+    <label>p12 密码</label>
+    <input type="password" name="p12_password" placeholder="导出 p12 时设的密码" autocomplete="off">
+    <label>描述文件（.mobileprovision）</label>
+    <input type="file" name="mobileprovision" required>
+    <div class="actions">
+      <button type="submit">保存高级证书</button>
+    </div>
+  </form>
+</details>
+{% endblock %}

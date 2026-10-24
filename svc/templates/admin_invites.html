@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}邀请码{% endblock %}
+{% block body %}
+<div class="card">
+  <h1>邀请码</h1>
+  <p class="muted">一码一人，用掉即失效。用户注册时填码，各自获得对应的出包次数。</p>
+  <form method="post">
+    <div class="row">
+      <div>
+        <label>生成几个</label>
+        <input type="text" name="count" value="1">
+      </div>
+      <div>
+        <label>每个码送几次出包</label>
+        <input type="text" name="credits" value="1">
+      </div>
+      <div>
+        <label>备注（可选）</label>
+        <input type="text" name="note" placeholder="比如：给某某">
+      </div>
+    </div>
+    <div class="actions">
+      <button type="submit">生成</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>全部邀请码</h2>
+  {% if invites %}
+  <table>
+    <tr><th>码</th><th>次数</th><th>备注</th><th>状态</th><th>使用人</th><th>生成时间</th></tr>
+    {% for i in invites %}
+    <tr>
+      <td><code>{{ i['code'] }}</code></td>
+      <td>{{ i['credits'] }}</td>
+      <td class="muted">{{ i['note'] or '-' }}</td>
+      <td>
+        {% if i['used_by'] %}<span class="pill done">已使用</span>
+        {% else %}<span class="pill">未使用</span>{% endif %}
+      </td>
+      <td class="muted">{{ i['used_email'] or '-' }}</td>
+      <td class="muted">{{ i['created_at'] }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">还没有生成过邀请码。</p>
+  {% endif %}
+</div>
+{% endblock %}

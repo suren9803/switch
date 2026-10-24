@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}安装 · 任务 #{{ job['id'] }}{% endblock %}
+{% block body %}
+<div class="card hero">
+  <div class="step-badge"><span class="num">3</span> 安装到手机</div>
+  <h1>安装到手机</h1>
+  <p class="muted">任务 #{{ job['id'] }} · {{ job['nsp_name'] or job['game_name'] or '' }}</p>
+
+  {% if link %}
+    <div class="callout">
+      <strong>请用 iPhone 上的 Safari 打开本页</strong>
+      <span class="muted">不要用微信 / QQ 内置浏览器。点下方按钮后，系统会询问是否安装；装完到「设置 → 通用 → VPN 与设备管理」信任开发者。</span>
+    </div>
+    <div class="actions">
+      <a class="btn" href="{{ link }}">在 Safari 中安装</a>
+      <a class="btn ghost" href="{{ url_for('download', jid=job['id'], t=token) }}">下载 IPA</a>
+    </div>
+    <p class="hint" style="margin-top:16px">或者把下面这段复制到 Safari 地址栏（已带短时令牌，installd 无需登录 cookie）：</p>
+    <pre>{{ link }}</pre>
+  {% else %}
+    <p class="muted">现在还不能一键安装：{{ reason }}</p>
+    <p class="hint">给服务配一个 https 公网地址（环境变量 <code>SVC_PUBLIC_URL</code>）。开发可用 Cloudflare Tunnel 等临时域名。</p>
+    <div class="actions">
+      <a class="btn ghost" href="{{ url_for('download', jid=job['id']) }}">先下载 IPA 到电脑</a>
+      <a class="btn ghost" href="{{ url_for('job_view', jid=job['id']) }}">← 回任务</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

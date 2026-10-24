@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}Switch 出包{% endblock %}</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#141821; --panel2:#1a1f2b; --line:#2a3140;
+    --fg:#e8ecf4; --dim:#8b93a7; --muted:#6b7385;
+    --accent:#4f8cff; --accent2:#3b6fe0; --ok:#22c55e; --warn:#eab308; --err:#ef4444;
+    --radius:14px; --shadow:0 8px 28px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       min-height:100vh}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:720px;margin:0 auto;padding:20px 16px 72px}
+
+  /* —— top bar —— */
+  .topbar{position:sticky;top:0;z-index:20;backdrop-filter:saturate(140%) blur(12px);
+          background:rgba(11,13,18,.85);border-bottom:1px solid var(--line)}
+  .topbar-inner{max-width:960px;margin:0 auto;padding:12px 16px;
+                display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .brand{font-weight:700;letter-spacing:.3px;font-size:15px;white-space:nowrap}
+  .brand a{color:var(--fg);text-decoration:none}
+  .top-spacer{flex:1}
+  .credits{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;
+           background:var(--panel2);border:1px solid var(--line);font-size:12px;color:var(--dim)}
+  .credits b{color:var(--fg);font-weight:600}
+  .top-link{color:var(--dim);font-size:13px;margin-left:4px;padding:6px 8px}
+  .top-link:hover{color:var(--fg);text-decoration:none}
+
+  /* —— step rail —— */
+  .rail-wrap{max-width:960px;margin:0 auto;padding:0 16px 4px}
+  .rail{display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+        padding:10px 0 14px;scrollbar-width:none}
+  .rail::-webkit-scrollbar{display:none}
+  .rail-step{flex:1 1 0;min-width:72px;display:flex;flex-direction:column;align-items:center;
+             gap:6px;position:relative;text-decoration:none;color:inherit;cursor:default}
+  .rail-step.clickable{cursor:pointer}
+  .rail-step.clickable:hover .rail-label{color:var(--fg)}
+  a.rail-step{text-decoration:none}
+  .rail-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+            font-size:13px;font-weight:700;border:2px solid var(--line);background:var(--panel);
+            color:var(--muted);transition:all .2s;position:relative;z-index:1}
+  .rail-step.done .rail-dot{background:rgba(34,197,94,.18);border-color:var(--ok);color:var(--ok)}
+  .rail-step.current .rail-dot{background:var(--accent);border-color:var(--accent);color:#fff;
+                               box-shadow:0 0 0 4px rgba(79,140,255,.22)}
+  .rail-step.locked .rail-dot{opacity:.55}
+  .rail-label{font-size:11px;color:var(--muted);text-align:center;line-height:1.25;max-width:78px}
+  .rail-step.current .rail-label{color:var(--fg);font-weight:600}
+  .rail-step.done .rail-label{color:var(--dim)}
+  .rail-conn{position:absolute;top:15px;left:calc(50% + 18px);right:calc(-50% + 18px);
+             height:2px;background:var(--line);z-index:0}
+  .rail-step.done .rail-conn{background:rgba(34,197,94,.45)}
+  .rail-step:last-child .rail-conn{display:none}
+
+  /* —— cards / forms —— */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+        padding:22px 20px;margin:14px 0;box-shadow:var(--shadow)}
+  .card.hero{background:linear-gradient(165deg,var(--panel2),var(--panel));
+             border-color:#323a4d}
+  .step-badge{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--accent);
+              font-weight:600;letter-spacing:.4px;text-transform:none;margin-bottom:8px}
+  .step-badge .num{display:inline-flex;width:22px;height:22px;border-radius:50%;
+                   background:rgba(79,140,255,.18);align-items:center;justify-content:center;font-size:12px}
+  h1{font-size:22px;margin:0 0 8px;letter-spacing:.2px;font-weight:700}
+  h2{font-size:15px;margin:0 0 12px;color:var(--dim);font-weight:600}
+  p{margin:0 0 12px}
+  label{display:block;font-size:13px;color:var(--dim);margin:14px 0 6px;font-weight:500}
+  input[type=text],input[type=email],input[type=password],input[type=file],select{
+    width:100%;padding:12px 14px;background:#0d1017;border:1px solid var(--line);
+    border-radius:10px;color:var(--fg);font-size:16px;font-family:inherit}
+  input[type=file]{font-size:14px;padding:10px}
+  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.18)}
+  button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    padding:13px 22px;border-radius:11px;border:1px solid transparent;
+    background:var(--accent);color:#fff;font-size:16px;font-weight:600;cursor:pointer;
+    font-family:inherit;text-decoration:none;line-height:1.2;
+    box-shadow:0 4px 14px rgba(79,140,255,.28);transition:filter .15s,transform .1s}
+  button:hover,.btn:hover{filter:brightness(1.08);text-decoration:none}
+  button:active,.btn:active{transform:translateY(1px)}
+  .btn.ghost{background:transparent;color:var(--accent);border-color:rgba(79,140,255,.45);
+             box-shadow:none}
+  .btn.block{display:flex;width:100%}
+  button:disabled,.btn:disabled,.btn.is-disabled{opacity:.45;cursor:not-allowed;pointer-events:none;box-shadow:none}
+  .flash{padding:12px 14px;border-radius:10px;margin:12px 0;font-size:14px}
+  .flash.ok{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35)}
+  .flash.err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35)}
+  .flash.warn{background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.35)}
+  .muted{color:var(--dim);font-size:13px}
+  .hint{color:var(--muted);font-size:13px;margin-top:8px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:500;font-size:12px}
+  .bar{height:10px;background:#0d1017;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+  .bar > i{display:block;height:100%;background:linear-gradient(90deg,#4f8cff,#22c55e);
+           width:0;transition:width .4s ease;border-radius:6px}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;
+        background:#0d1017;border:1px solid var(--line);color:var(--dim)}
+  .pill.done{color:var(--ok);border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.08)}
+  .pill.failed{color:var(--err);border-color:rgba(239,68,68,.4)}
+  .pill.running,.pill.queued{color:var(--accent);border-color:rgba(79,140,255,.4);
+                             background:rgba(79,140,255,.08)}
+  code{background:#0d1017;border:1px solid var(--line);padding:2px 7px;border-radius:6px;
+       font-size:12.5px;word-break:break-all}
+  pre{background:#0d1017;border:1px solid var(--line);border-radius:10px;padding:14px;
+      overflow:auto;font-size:12.5px;line-height:1.5;max-height:320px;white-space:pre-wrap;word-break:break-all}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row > *{flex:1 1 200px}
+  ol.steps{padding-left:20px;color:var(--dim);margin:8px 0 16px}
+  ol.steps li{margin:10px 0}
+  ol.steps b{color:var(--fg)}
+  .callout{background:rgba(79,140,255,.1);border:1px solid rgba(79,140,255,.28);
+           border-radius:12px;padding:14px 16px;margin:14px 0}
+  .callout strong{display:block;margin-bottom:4px;color:var(--fg)}
+  .auth-wrap{max-width:420px;margin:28px auto 0}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+  .games-list{list-style:none;padding:0;margin:8px 0 0}
+  .games-list li{padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+                 background:#0d1017;margin-bottom:8px;font-size:14px}
+  .games-list code{margin-left:6px}
+  @media (max-width:520px){
+    h1{font-size:20px}
+    .card{padding:18px 16px}
+    .rail-label{font-size:10px;max-width:64px}
+    .rail-dot{width:28px;height:28px}
+  }
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><a href="{{ url_for('index') }}">Switch 出包</a></div>
+    <div class="top-spacer"></div>
+    {% if user %}
+      <span class="credits" title="剩余出包次数">次数 <b>{{ progress.credits if progress else user['credits'] }}</b></span>
+      {% if user['is_admin'] %}<a class="top-link" href="{{ url_for('admin_invites') }}">邀请码</a>{% endif %}
+      <a class="top-link" href="{{ url_for('logout') }}">退出</a>
+    {% else %}
+      <a class="top-link" href="{{ url_for('login') }}">登录</a>
+      <a class="top-link" href="{{ url_for('register') }}">注册</a>
+    {% endif %}
+  </div>
+  {% if user and progress %}
+  <div class="rail-wrap">
+    <nav class="rail" aria-label="任务步骤">
+      {% for s in progress.steps %}
+        {% if s.clickable and s.url %}
+        <a class="rail-step {{ s.status }} clickable" href="{{ s.url }}">
+          <span class="rail-conn" aria-hidden="true"></span>
+          <span class="rail-dot">{% if s.status == 'done' %}✓{% else %}{{ s.n }}{% endif %}</span>
+          <span class="rail-label">{{ s.name }}</span>
+        </a>
+        {% else %}
+        <div class="rail-step {{ s.status }}"
+             {% if s.status == 'locked' %}title="请先完成上一步" onclick="alert('请先完成上一步')"{% endif %}>
+          <span class="rail-conn" aria-hidden="true"></span>
+          <span class="rail-dot">{% if s.status == 'done' %}✓{% else %}{{ s.n }}{% endif %}</span>
+          <span class="rail-label">{{ s.name }}</span>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </nav>
+  </div>
+  {% endif %}
+</div>
+
+<div class="wrap">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}<div class="flash {{ cat }}">{{ m }}</div>{% endfor %}
+  {% endwith %}
+  {% block body %}{% endblock %}
+</div>
+</body>
+</html>

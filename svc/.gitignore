@@ -1,0 +1,30 @@
+# --- 运行期数据，绝对不能进仓库 / runtime state, never commit ---
+data/                 # SQLite 数据库、secret_key、用户签名凭据（p12 / mobileprovision）
+uploads/              # 用户上传的 NSP，每个任务几 GB
+outputs/              # 出包产物 IPA，每个 5–6 GB
+logs/                 # 每个任务的完整日志
+shells/               # 预编好的壳（十几 MB 的二进制，按游戏分发，不放 git）
+bin/                  # zsign.exe / cloudflared.exe，从 Releases 下，见 README
+.vendor/              # iPASide 引擎与虚拟环境，用脚本装，见 README
+
+# --- 密钥，绝不能进仓库 / keys must never be committed ---
+prod.keys
+title.keys
+*.keys
+*.p12
+*.mobileprovision
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyc
+.venv/
+venv/
+
+# --- 备份与临时 ---
+*.bak
+*.bak-*
+*.bak2-*
+*.log
+*.tmp
+*.partial

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}登录 · Switch 出包{% endblock %}
+{% block body %}
+<div class="auth-wrap">
+  <div class="card hero">
+    <div class="step-badge"><span class="num">→</span> 开始任务</div>
+    <h1>登录</h1>
+    <p class="muted">把 Switch 游戏装到 iPhone。登录后按步骤：绑设备 → 上传证书 → 上传出包 → 安装。</p>
+    <form method="post">
+      <label>账号 / 邮箱</label>
+      <input type="text" name="email" required autofocus autocomplete="username">
+      <label>密码</label>
+      <input type="password" name="password" required autocomplete="current-password">
+      <p style="margin-top:18px"><button type="submit" class="btn block">登录并继续</button></p>
+    </form>
+    <p class="hint">本站需要邀请码才能注册。有码的话 <a href="{{ url_for('register') }}">去注册</a>。</p>
+  </div>
+</div>
+{% endblock %}

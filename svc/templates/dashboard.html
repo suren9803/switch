@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}任务{% endblock %}
+{% block body %}
+{# /dashboard 已在后端重定向到当前步骤；此模板作兜底 #}
+<div class="card hero">
+  <div class="step-badge"><span class="num">★</span> 任务向导</div>
+  <h1>继续你的出包任务</h1>
+  <p class="muted">按步骤完成：上传游戏 → Apple ID → 安装到手机。</p>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('index') }}">进入当前步骤</a>
+  </div>
+</div>
+{% endblock %}

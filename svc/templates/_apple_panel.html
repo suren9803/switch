@@ -1,0 +1,186 @@
+{# 内嵌 Apple ID 面板：经 /api/creds XHR 提交，不整页跳转 #}
+<div class="card" id="apple-panel" data-has-apple="{{ '1' if has_apple else '0' }}">
+  <div class="step-badge"><span class="num">2</span> Apple ID（可同时填写）</div>
+  <h2 style="margin-top:4px;color:var(--fg);font-size:17px">边等边填 Apple ID</h2>
+  <p class="muted" id="apple-hint">上传 / 出包需要一些时间。请留在本页，在这里填写 Apple ID，装包时就能直接签名。</p>
+  <div id="apple-flash" class="flash" style="display:none"></div>
+  <div id="apple-status" style="margin-bottom:10px">
+    {% if info %}
+      <p><span class="pill done">已有签名证书</span>
+        {% if apple %}<code>{{ apple['email'] }}</code>{% endif %}
+      </p>
+    {% elif apple %}
+      <p><span class="pill running">已保存 Apple ID</span> <code>{{ apple['email'] }}</code>
+        <span class="muted">— 尚未取到证书</span></p>
+    {% else %}
+      <p class="muted">尚未填写 Apple ID</p>
+    {% endif %}
+  </div>
+
+  <div id="apple-2fa-box" style="{% if not pending_2fa %}display:none{% endif %}">
+    <p class="hint"><strong>需要两步验证</strong> — 验证码发到 <strong>手机短信</strong>（不是苹果设备弹窗）
+      {% if pending_2fa %}（账号 <code>{{ pending_2fa.email }}</code>）{% endif %}。
+      请查短信收件箱 / 垃圾短信；尾号见下方提示。</p>
+    <p class="hint" id="apple-2fa-phone-hint" style="display:none"></p>
+    <label>验证码</label>
+    <input type="text" id="apple-code" name="apple_code" inputmode="numeric"
+           autocomplete="one-time-code" placeholder="6 位数字">
+    <label>本机 UDID（若还没填过）</label>
+    <p class="hint">用 <strong>iPhone 自带 Safari</strong> 打开
+      <a href="https://udid.tech/download-profile" target="_blank" rel="noopener">udid.tech 下载描述文件</a>，
+      到「设置 → 已下载描述文件」安装，装完页面会显示 UDID，复制粘贴到下面即可。</p>
+    <p class="actions" style="margin:8px 0 12px">
+      <a class="btn ghost" href="https://udid.tech/download-profile" target="_blank" rel="noopener">去获取 UDID</a>
+    </p>
+    <input type="text" id="apple-udid-2fa" placeholder="从 udid.tech 复制粘贴"
+           value="{{ devices[0]['udid'] if devices else '' }}">
+    <div class="actions">
+      <button type="button" id="apple-2fa-btn">提交验证码并取证</button>
+      <button type="button" class="btn ghost" id="apple-2fa-resend">没收到？重发验证码</button>
+      <button type="button" class="btn ghost" id="apple-switch-btn">换个 Apple 账号</button>
+    </div>
+  </div>
+
+  <div id="apple-main-box" style="{% if pending_2fa %}display:none{% endif %}">
+    <label>Apple ID（邮箱）</label>
+    <input type="email" id="apple-email" required
+           value="{{ apple['email'] if apple else '' }}"
+           placeholder="name@example.com" autocomplete="username">
+    <label>密码 / App 专用密码</label>
+    <input type="password" id="apple-password" required
+           placeholder="Apple ID 登录密码" autocomplete="current-password">
+    <p class="hint">填 Apple ID 登录密码。若开了双重认证，下一步会要你输入设备上的 6 位验证码。</p>
+    <label>手机 UDID（签名必须登记设备）</label>
+    <p class="hint">用 <strong>iPhone 自带 Safari</strong> 打开
+      <a href="https://udid.tech/download-profile" target="_blank" rel="noopener">udid.tech 下载描述文件</a>，
+      到「设置 → 已下载描述文件」安装，装完页面会显示 UDID，复制粘贴到下面即可。</p>
+    <p class="actions" style="margin:8px 0 12px">
+      <a class="btn ghost" href="https://udid.tech/download-profile" target="_blank" rel="noopener">去获取 UDID</a>
+    </p>
+    <input type="text" id="apple-udid"
+           placeholder="从 udid.tech 复制粘贴"
+           value="{{ devices[0]['udid'] if devices else (provision_meta.udid if provision_meta else '') }}">
+    <div class="actions">
+      <button type="button" id="apple-save-btn">保存并获取证书</button>
+      <button type="button" class="btn ghost" id="apple-repro-btn">重新取证</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  const $flash = document.getElementById('apple-flash');
+  const $status = document.getElementById('apple-status');
+  const $main = document.getElementById('apple-main-box');
+  const $box2 = document.getElementById('apple-2fa-box');
+  const panel = document.getElementById('apple-panel');
+
+  function showFlash(msg, kind){
+    if(!msg){ $flash.style.display='none'; return; }
+    $flash.style.display='block';
+    $flash.className = 'flash ' + (kind || 'ok');
+    $flash.textContent = msg;
+  }
+
+  function applyStatus(j){
+    if(!j) return;
+    panel.dataset.hasApple = j.has_apple ? '1' : '0';
+    if(j.needs_2fa){
+      $main.style.display = 'none';
+      $box2.style.display = 'block';
+      const ph = document.getElementById('apple-2fa-phone-hint');
+      if(ph){
+        if(j.phone_last2){
+          ph.style.display = 'block';
+          ph.innerHTML = '短信发往尾号 <strong>' + j.phone_last2 + '</strong> 的手机。';
+        } else if((j.pending_2fa||{}).method === 'sms' || j.method === 'sms'){
+          ph.style.display = 'block';
+          ph.textContent = '验证码以短信发送，请查看手机短信。';
+        }
+      }
+    } else {
+      $box2.style.display = 'none';
+      $main.style.display = 'block';
+    }
+    if(j.has_creds || j.has_profile){
+      $status.innerHTML = `<p><span class="pill done">已有签名证书</span> ${j.email ? '<code>'+j.email+'</code>' : ''}</p>`;
+    } else if(j.has_apple_id || j.email){
+      $status.innerHTML = `<p><span class="pill running">已保存 Apple ID</span> <code>${j.email||''}</code>
+        <span class="muted">— 尚未取到证书</span></p>`;
+    } else {
+      $status.innerHTML = `<p class="muted">尚未填写 Apple ID</p>`;
+    }
+  }
+
+  async function postCreds(payload){
+    const btn = document.getElementById('apple-save-btn');
+    const btn2 = document.getElementById('apple-2fa-btn');
+    const btn3 = document.getElementById('apple-repro-btn');
+    const btn4 = document.getElementById('apple-2fa-resend');
+    const btn5 = document.getElementById('apple-switch-btn');
+    [btn,btn2,btn3,btn4,btn5].forEach(b => { if(b) b.disabled = true; });
+    try{
+      const r = await fetch('/api/creds', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: JSON.stringify(payload),
+        credentials: 'same-origin',
+      });
+      const j = await r.json().catch(() => ({}));
+      applyStatus(j);
+      if(!r.ok || j.ok === false){
+        showFlash(j.error || j.message || '提交失败', 'err');
+      } else if(j.warn){
+        showFlash(j.message || '已保存，但有警告', 'warn');
+      } else {
+        showFlash(j.message || '已保存', 'ok');
+      }
+      return j;
+    } catch(e){
+      showFlash('网络错误：' + e, 'err');
+    } finally {
+      [btn,btn2,btn3,btn4,btn5].forEach(b => { if(b) b.disabled = false; });
+    }
+  }
+
+  const saveBtn = document.getElementById('apple-save-btn');
+  if(saveBtn) saveBtn.addEventListener('click', () => postCreds({
+    action: 'apple',
+    apple_email: document.getElementById('apple-email').value,
+    apple_password: document.getElementById('apple-password').value,
+    udid: document.getElementById('apple-udid').value,
+  }));
+
+  const twoBtn = document.getElementById('apple-2fa-btn');
+  if(twoBtn) twoBtn.addEventListener('click', () => postCreds({
+    action: 'apple_2fa',
+    apple_code: document.getElementById('apple-code').value,
+    udid: document.getElementById('apple-udid-2fa').value
+      || (document.getElementById('apple-udid')||{}).value || '',
+  }));
+
+  const reproBtn = document.getElementById('apple-repro-btn');
+  if(reproBtn) reproBtn.addEventListener('click', () => postCreds({
+    action: 'reprovision',
+    udid: document.getElementById('apple-udid').value,
+  }));
+
+  const resendBtn = document.getElementById('apple-2fa-resend');
+  if(resendBtn) resendBtn.addEventListener('click', () => postCreds({
+    action: 'apple_2fa_resend',
+  }));
+
+  const switchBtn = document.getElementById('apple-switch-btn');
+  if(switchBtn) switchBtn.addEventListener('click', () => postCreds({
+    action: 'apple_reset',
+  }).then(j => {
+    if(j && j.ok !== false){
+      const email = document.getElementById('apple-email');
+      const pw = document.getElementById('apple-password');
+      if(email) email.value = '';
+      if(pw) pw.value = '';
+    }
+  }));
+
+  window.__appleApplyStatus = applyStatus;
+})();
+</script>

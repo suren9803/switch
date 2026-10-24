@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}设备已绑定{% endblock %}
+{% block body %}
+<div class="card hero">
+  <div class="step-badge"><span class="num">✓</span> 步骤 1 完成</div>
+  <h1>设备已绑定</h1>
+  <p class="muted">这台手机已经登记好了。下一步上传签名证书，然后就能出包。</p>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('creds') }}">下一步：上传证书 →</a>
+  </div>
+</div>
+{% endblock %}

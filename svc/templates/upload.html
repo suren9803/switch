@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}步骤 1 · 上传游戏{% endblock %}
+{% block body %}
+<div class="card hero" id="upload-card">
+  <div class="step-badge"><span class="num">1</span> 上传游戏</div>
+  <h1>上传游戏</h1>
+  <p class="muted">选择 .nsp 文件开始出包。上传过程中请<strong>不要关闭或离开本页</strong>。</p>
+
+  <form method="post" enctype="multipart/form-data" id="upload-form">
+    <label>装到哪台设备（可选）</label>
+    <select name="device" id="device-sel">
+      <option value="">稍后登记 / 不指定</option>
+      {% for d in devices %}
+      <option value="{{ d['id'] }}">{{ d['name'] or d['model'] or '设备' }} — {{ d['udid'][:12] }}…</option>
+      {% endfor %}
+    </select>
+    <p class="hint">没有设备也没关系：用手机 Safari 打开下方「去获取 UDID」即可。</p>
+
+    <label>游戏文件（.nsp，本体和更新档可以一起选）</label>
+    <input type="file" name="nsp" id="nsp-input" accept=".nsp" multiple required>
+
+    <p class="hint">文件越大、游戏越新，时间越长。每次出包消耗 1 次额度。</p>
+    <div class="actions">
+      <button type="submit" id="upload-btn">开始出包</button>
+    </div>
+  </form>
+
+  <div id="progress-panel" style="display:none;margin-top:18px">
+    <p id="stage" style="margin:0 0 8px;font-size:16px;font-weight:600">上传中</p>
+    <div class="bar"><i id="fill" style="width:0%"></i></div>
+    <p class="muted" id="msg" style="margin-top:10px;white-space:pre-wrap"></p>
+    <p class="hint" id="stay-hint">上传进行中，请留在本页。</p>
+    <div class="actions" id="actions"></div>
+  </div>
+</div>
+
+<div class="card" id="udid-card">
+  <div class="step-badge"><span class="num">2</span> 获取 UDID</div>
+  <h2 style="margin-top:4px;color:var(--fg);font-size:17px">手机获取 UDID</h2>
+  <p class="muted">签名需要登记这台 iPhone。用手机 Safari 打开下面的链接，安装描述文件后复制 UDID。</p>
+  <ol class="steps">
+    <li>iPhone 用 <strong>Safari</strong> 打开链接（勿用微信内置浏览器）</li>
+    <li>下载描述文件 →「设置 → 已下载描述文件」安装</li>
+    <li>页面显示 UDID 后长按复制，需要签名时再粘贴即可</li>
+  </ol>
+  <div class="actions">
+    <a class="btn" href="https://udid.tech/download-profile" target="_blank" rel="noopener">去获取 UDID</a>
+  </div>
+  <p class="hint" style="margin-top:12px">链接：<code>https://udid.tech/download-profile</code></p>
+</div>
+
+<div class="card">
+  <h2>目前可出包的游戏</h2>
+  <p class="muted">目前可出包：Super Mario Odyssey。不在列表里的游戏会提示暂不支持。</p>
+  <ul class="games-list">
+    <li>Super Mario Odyssey <code>0100000000010000</code></li>
+  </ul>
+</div>
+
+<script>
+(function(){
+  const form = document.getElementById('upload-form');
+  const btn = document.getElementById('upload-btn');
+  const panel = document.getElementById('progress-panel');
+  const $s = document.getElementById('stage');
+  const $f = document.getElementById('fill');
+  const $m = document.getElementById('msg');
+  const $a = document.getElementById('actions');
+  const $hint = document.getElementById('stay-hint');
+  let jid = null;
+  let polling = false;
+
+  function setProgress(pct, stage, msg){
+    panel.style.display = 'block';
+    if(stage) $s.textContent = stage;
+    $f.style.width = Math.max(0, Math.min(100, pct||0)) + '%';
+    if(msg != null) $m.textContent = msg;
+  }
+
+  function renderDone(j){
+    $hint.style.display = 'none';
+    if(j.signed){
+      $a.innerHTML = `<a class="btn" href="/install/${jid}">安装到手机</a>
+                      <a class="btn ghost" href="/download/${jid}">下载 IPA</a>
+                      <a class="btn ghost" href="/upload">再出一包</a>`;
+    } else {
+      $a.innerHTML = `<span class="muted">包已就绪。可先下载 IPA；签名安装请到任务页继续。</span>
+                      <a class="btn" href="/job/${jid}">查看任务</a>
+                      <a class="btn ghost" href="/download/${jid}">下载 IPA</a>`;
+    }
+  }
+
+  async function pollJob(){
+    if(!jid || polling) return;
+    polling = true;
+    try{
+      const r = await fetch(`/api/job/${jid}`, {cache:'no-store', credentials:'same-origin'});
+      if(!r.ok){ setTimeout(()=>{ polling=false; pollJob(); }, 2000); return; }
+      const j = await r.json();
+      if(j.state === 'uploading'){
+        setProgress(j.progress||0, j.stage || '上传中', j.message || '正在上传…');
+        setTimeout(()=>{ polling=false; pollJob(); }, 1500);
+        return;
+      }
+      setProgress(j.progress||0, j.stage || j.state, j.message || '');
+      $hint.textContent = '出包进行中，请留在本页。';
+      if(j.state === 'done'){ renderDone(j); polling=false; return; }
+      if(j.state === 'failed'){
+        $f.style.background = 'var(--err)';
+        $a.innerHTML = `<a class="btn" href="/upload">重新上传</a>`;
+        $hint.style.display = 'none';
+        polling=false; return;
+      }
+      setTimeout(()=>{ polling=false; pollJob(); }, 1500);
+    }catch(e){
+      setTimeout(()=>{ polling=false; pollJob(); }, 3000);
+    }
+  }
+
+  form.addEventListener('submit', async function(ev){
+    ev.preventDefault();
+    const files = document.getElementById('nsp-input').files;
+    if(!files || !files.length){ alert('选一个 .nsp 文件'); return; }
+    btn.disabled = true;
+    setProgress(0, '准备上传', '创建任务…');
+    $hint.style.display = 'block';
+    $hint.textContent = '上传进行中，请留在本页。';
+
+    try{
+      const fd0 = new FormData();
+      fd0.append('device', document.getElementById('device-sel').value || '');
+      const r0 = await fetch('/api/upload/start', {method:'POST', body: fd0, credentials:'same-origin'});
+      const j0 = await r0.json().catch(()=>({}));
+      if(!r0.ok || !j0.ok){
+        setProgress(0, '失败', j0.error || '无法开始上传');
+        btn.disabled = false;
+        return;
+      }
+      jid = j0.jid;
+      try{ history.replaceState(null, '', '/job/' + jid); }catch(e){}
+
+      const fd = new FormData();
+      for(let i=0;i<files.length;i++) fd.append('nsp', files[i]);
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', j0.upload_url || ('/api/upload/' + jid));
+        xhr.withCredentials = true;
+        xhr.upload.onprogress = function(e){
+          if(!e.lengthComputable) return;
+          const pct = Math.round(e.loaded / e.total * 100);
+          const name = files[0].name || '';
+          setProgress(pct, '上传中 ' + pct + '%', name + '（' + pct + '%）');
+        };
+        xhr.onload = function(){
+          let j = {};
+          try{ j = JSON.parse(xhr.responseText); }catch(e){}
+          if(xhr.status >= 200 && xhr.status < 300 && j.ok){
+            setProgress(100, '上传完成', '上传完成，等待出包');
+            resolve(j);
+          } else {
+            reject(new Error(j.error || ('上传失败 HTTP ' + xhr.status)));
+          }
+        };
+        xhr.onerror = function(){ reject(new Error('网络错误')); };
+        xhr.send(fd);
+      });
+
+      // 留在本页，切到排队/出包进度
+      setProgress(0, '排队中', '上传完成，等待出包');
+      $hint.textContent = '出包进行中，请留在本页。';
+      pollJob();
+    }catch(err){
+      setProgress(0, '失败', String(err.message || err));
+      $f.style.background = 'var(--err)';
+      btn.disabled = false;
+      $a.innerHTML = `<a class="btn" href="/upload">重试</a>`;
+    }
+  });
+})();
+</script>
+{% endblock %}

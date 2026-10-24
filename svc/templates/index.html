@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Switch 出包{% endblock %}
+{% block body %}
+{# 已登录会在后端重定向到向导；未登录重定向到登录。此页作兜底说明。 #}
+<div class="card hero">
+  <h1>把 Switch 游戏装到 iPhone</h1>
+  <p class="muted">上传你自己的游戏文件，平台负责解包、改写、翻译着色器、打包，最后给你可安装的 IPA。</p>
+  <ol class="steps">
+    <li>绑定一台手机</li>
+    <li>上传签名证书</li>
+    <li>上传 .nsp 出包</li>
+    <li>下载或 OTA 安装</li>
+  </ol>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('login') }}">登录</a>
+    <a class="btn ghost" href="{{ url_for('register') }}">注册</a>
+  </div>
+</div>
+{% endblock %}
